@@ -1,0 +1,37 @@
+services:
+
+  # Ollama model server
+  # First run: docker compose exec ollama ollama pull phi3:mini
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    deploy:
+      resources:
+        limits:
+          memory: 6g
+
+  # Python GUI + Rust sidecar in one image
+  # Requires X11 forwarding on the host — run once before starting:
+  #   xhost +local:docker
+  localai:
+    build: .
+    depends_on:
+      - ollama
+    environment:
+      OLLAMA_URL:        http://ollama:11434
+      RUST_SIDECAR_URL:  http://localhost:8080
+      STATE_DIR:         /state
+      DISPLAY:           ${DISPLAY}          # pass host display through
+      QT_QPA_PLATFORM:   xcb                 # force X11 backend
+    volumes:
+      - ./state:/state
+      - /tmp/.X11-unix:/tmp/.X11-unix        # X11 socket
+    network_mode: host                       # simplest for X11 + localhost sidecar
+    stdin_open: true
+    tty: true
+
+volumes:
+  ollama_models:
